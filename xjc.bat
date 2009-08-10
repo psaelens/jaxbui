@@ -1,1 +1,0 @@
-\javadev\tools\jaxb\jaxb-ri-20090410\bin\xjc.bat -extension -classpath target\classes;\javadev\tools\jaxb\jaxb-ri-20090410\lib\jaxb-xjc.jar;\javadev\prj\swing-suite-1.5.0\libraries\binding-1.1.1\binding-1.1.1.jar;\javadev\prj\swing-suite-1.5.0\libraries\forms-1.0.6\forms-1.0.6.jar -Xui -d src\main\java -p generated po.xsd 
