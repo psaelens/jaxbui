@@ -1,6 +1,6 @@
 package com.spitech.jaxbui;
 
-import generated.po.view.PurchaseOrderTypeView;
+import generated.project.view.ProjectView;
 
 import java.awt.event.ActionEvent;
 import java.io.File;
@@ -11,18 +11,18 @@ import javax.swing.JFrame;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
+import javax.xml.bind.Marshaller;
 import javax.xml.bind.Unmarshaller;
 
-public class PurchaseOrderApp {
+public class ProjectApp {
 
 	/**
 	 * @param args
 	 */
     public static void main(String[] args) {
-    	final PurchaseOrderTypeView view = new PurchaseOrderTypeView();
-    	final JFrame frame = new JFrame(".:Purchase Order Editor");
+    	final ProjectView view = new ProjectView();
+    	final JFrame frame = new JFrame(".:Project Editor");
     	
 		JMenuBar menubar = new JMenuBar();
 		JMenu fileMenu = new JMenu("File");
@@ -37,10 +37,14 @@ public class PurchaseOrderApp {
 		            //This is where a real application would open the file.
 		            System.out.println("Opening: " + file.getName() + ".");
 					try {
-						JAXBContext context = JAXBContext.newInstance("generated.po");
+						JAXBContext context = JAXBContext.newInstance("generated.project");
 						Unmarshaller u = context.createUnmarshaller();
-						JAXBElement po = (JAXBElement) u.unmarshal(file);
-						view.updateView(po.getValue());
+						Object o =  u.unmarshal(file);
+						view.updateView(o);
+						
+			            Marshaller m = context.createMarshaller();
+			            m.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
+			            m.marshal(o, System.out);
 					} catch (JAXBException e1) {
 						e1.printStackTrace();
 					}

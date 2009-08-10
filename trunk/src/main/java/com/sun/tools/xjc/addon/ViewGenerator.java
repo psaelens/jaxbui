@@ -2,9 +2,9 @@ package com.sun.tools.xjc.addon;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
@@ -18,10 +18,14 @@ import com.sun.codemodel.JDefinedClass;
 import com.sun.codemodel.JType;
 import com.sun.tools.xjc.model.CClassInfo;
 import com.sun.tools.xjc.model.CPropertyInfo;
+import com.sun.tools.xjc.model.CTypeInfo;
 import com.sun.tools.xjc.model.Model;
+import com.sun.tools.xjc.outline.Aspect;
 import com.sun.tools.xjc.outline.ClassOutline;
+import com.sun.tools.xjc.outline.EnumOutline;
 import com.sun.tools.xjc.outline.Outline;
 import com.sun.tools.xjc.util.CodeModelClassFactory;
+import com.sun.xml.bind.v2.model.core.PropertyKind;
 
 public class ViewGenerator {
 
@@ -82,7 +86,7 @@ public class ViewGenerator {
 	}
 
 	public SwingViewRenderer getViewRenderer(CClassInfo bean) {
-		System.out.println("ViewGenerator.getViewRenderer(" + bean + ")");
+//		System.out.println("ViewGenerator.getViewRenderer(" + bean + ")");
 		SwingViewRenderer r = viewRenderers.get(bean);
 		if (r == null)
 			viewRenderers.put(bean, r = generateViewRenderer(bean));
@@ -103,11 +107,12 @@ public class ViewGenerator {
 	 */
 	private void generateViewBody(ClassOutline cc) {
 		CClassInfo target = cc.target;
-
+		SwingViewRenderer viewRenderer = getViewRenderer(cc.target);
 		for (CPropertyInfo prop : target.getProperties()) {
 			generateFieldDecl(cc, prop);
 		}
-
+		viewRenderer.end();
+		
 		if (target.declaresAttributeWildcard()) {
 //			generateAttributeWildcard(cc);
 		}
@@ -116,13 +121,58 @@ public class ViewGenerator {
 
 	private void generateFieldDecl(ClassOutline cc, CPropertyInfo prop) {
 		SwingViewRenderer viewRenderer = getViewRenderer(cc.target);
-		if (isSimpleType(prop.baseType)) {
-			viewRenderer.handleSimpleType(cc, prop);
-		} else if (isGeneratedType(prop.baseType)) {
-			viewRenderer.handleComplexType(cc, prop);
+//		System.out.println(prop.displayName());
+//		System.out.println("baseType:" + prop.baseType);
+//		System.out.println("locator:" + prop.locator);
+//		System.out.println("realization:" + prop.realization);
+//		System.out.println("Adapter:" + prop.getAdapter());
+//		System.out.println("SchemaComponent:"+prop.getSchemaComponent());
+//		System.out.println("SchemaType:" + prop.getSchemaType());
+//		System.out.println("kind:" + prop.kind());
+//		for(CTypeInfo typeInfo : prop.ref()) {
+//			System.out.println("type:" + typeInfo.toType(outline, Aspect.EXPOSED));
+//		}
+		if (prop.isCollection()) {
+			viewRenderer.handleCollection(prop);
+		}else if (isEnum(prop)) {
+			viewRenderer.handleEnumeration(prop);
+		}else if (isAttribute(prop)) {
+			viewRenderer.handleSimpleType(prop);
+		}else if (prop.kind() == PropertyKind.VALUE) {
+			viewRenderer.handleSimpleType(prop);
+		} else if (prop.kind() == PropertyKind.ELEMENT) {
+			viewRenderer.handleComplexType(prop);
+		} else if (prop.kind() == PropertyKind.REFERENCE) {
+			viewRenderer.handleComplexType(prop);
+		} else if (prop.kind() == PropertyKind.MAP) {
+			System.out.println("TODO : Handle Map");
 		}
 	}
 	
+	private boolean isEnum(CPropertyInfo prop) {
+		for (CTypeInfo typeInfo :prop.ref()) {
+			if (isEnum(outline, typeInfo.toType(outline, Aspect.EXPOSED))) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	private boolean isEnum(Outline outline, JType type) {
+		Iterator<EnumOutline> iterator = outline.getEnums().iterator();
+		while (iterator.hasNext()) {
+			EnumOutline enumOutline = (EnumOutline) iterator.next();
+			if (type.equals(enumOutline.clazz)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	private boolean isAttribute(CPropertyInfo prop) {
+		return prop.kind() == PropertyKind.ATTRIBUTE;
+	}
+
 	private boolean isSimpleType(JType type) {
 		return type.isPrimitive() || simpleTypes.contains(type);
 	}
