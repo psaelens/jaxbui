@@ -18,16 +18,18 @@ import javax.swing.JTextField;
 import javax.swing.border.TitledBorder;
 import javax.xml.datatype.XMLGregorianCalendar;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.builder.ToStringBuilder;
 import org.apache.commons.lang.builder.ToStringStyle;
 
 import com.jgoodies.binding.adapter.AbstractTableAdapter;
 import com.jgoodies.binding.list.ArrayListModel;
-import com.jgoodies.binding.list.ListHolder;
+import com.jgoodies.binding.list.IndirectListModel;
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.FormLayout;
-import com.spitech.jaxbui.swing.JDateField;
-import com.spitech.jaxbui.swing.JNumberField;
+import com.spitech.uiskeleton.component.JDateField;
+import com.spitech.uiskeleton.component.JNumberField;
+import com.spitech.uiskeleton.view.editor.AbstractEditor;
 import com.sun.codemodel.JArray;
 import com.sun.codemodel.JCase;
 import com.sun.codemodel.JClass;
@@ -44,20 +46,17 @@ import com.sun.codemodel.JType;
 import com.sun.codemodel.JVar;
 import com.sun.tools.xjc.model.CBuiltinLeafInfo;
 import com.sun.tools.xjc.model.CClassInfo;
-import com.sun.tools.xjc.model.CElementInfo;
-import com.sun.tools.xjc.model.CElementPropertyInfo;
 import com.sun.tools.xjc.model.CPropertyInfo;
 import com.sun.tools.xjc.model.CTypeInfo;
-import com.sun.tools.xjc.model.CTypeRef;
 import com.sun.tools.xjc.outline.Aspect;
 import com.sun.tools.xjc.outline.ClassOutline;
 import com.sun.tools.xjc.outline.Outline;
-import com.sun.xml.bind.v2.model.core.PropertyKind;
 
 public class SwingViewRenderer {
 	
 	private Map<JType, Class<? extends JComponent>> componentsMap = new HashMap<JType, Class<? extends JComponent>>();
 	private Map<Class<? extends JComponent>, String> componentSettersMap = new HashMap<Class<? extends JComponent>, String>();
+	private Map<Class<? extends JComponent>, String> componentGettersMap = new HashMap<Class<? extends JComponent>, String>();
 
 	private final ViewGenerator viewGenerator;
 	
@@ -78,7 +77,6 @@ public class SwingViewRenderer {
 	SwingViewRenderer(ViewGenerator viewGenerator, Outline outline, CClassInfo bean) {
 		this.viewGenerator = viewGenerator;
 		this.outline = outline;
-		System.out.println(bean);
 		this.classOutline = outline.getClazz(bean);
 		this.codeModel = outline.getCodeModel();
 		
@@ -87,15 +85,20 @@ public class SwingViewRenderer {
 		 */
 		componentsMap.put(codeModel._ref(String.class), JTextField.class);
 		componentSettersMap.put(JTextField.class, "setText");
+		componentGettersMap.put(JTextField.class, "getText");
 		componentsMap.put(codeModel._ref(Number.class), JNumberField.class);
+		componentsMap.put(codeModel._ref(Byte.class), JNumberField.class);
 		componentsMap.put(codeModel._ref(Integer.class), JNumberField.class);
 		componentsMap.put(codeModel._ref(BigInteger.class), JNumberField.class);
 		componentsMap.put(codeModel._ref(BigDecimal.class), JNumberField.class);
 		componentSettersMap.put(JNumberField.class, "setNumber");
+		componentGettersMap.put(JNumberField.class, "getNumber");
 		componentsMap.put(codeModel._ref(Boolean.class), JCheckBox.class);
 		componentSettersMap.put(JCheckBox.class, "setSelected");
+		componentGettersMap.put(JCheckBox.class, "isSelected");
 		componentsMap.put(codeModel._ref(XMLGregorianCalendar.class), JDateField.class);
 		componentSettersMap.put(JDateField.class, "setDate");
+		componentGettersMap.put(JDateField.class, "getDate");
 		
 		
 		try {
@@ -103,13 +106,21 @@ public class SwingViewRenderer {
 //			System.out.println("subPackage:" + bean.getOwnerPackage().subPackage("view2").name());
 			String fullyqualifiedName = bean.getOwnerPackage().subPackage(
 					"view").name()
-					+ "." + bean.shortName + "View";
+					+ ".editor." + bean.shortName + "Editor";
 			_class = codeModel._class(fullyqualifiedName);
 		} catch (JClassAlreadyExistsException e) {
 			// it's OK for this to collide.
 			_class = e.getExistingClass();
 		}
 
+		_class._extends(AbstractEditor.class);
+		
+		
+		viewGenerator.registerEditor(classOutline.implRef, _class);
+		
+		JMethod _constructor = _class.constructor(JMod.PUBLIC);
+		_constructor.body().invoke("super").arg("");
+		
 		_updateModel = _class.method(JMod.PUBLIC, codeModel.VOID,
 				"updateModel");
 		JVar _updateModelParam1 = _updateModel.param(Object.class, "model");
@@ -128,7 +139,7 @@ public class SwingViewRenderer {
 		_modelForUpdateView = _updateView.body()
 				.decl(
 						classOutline.implClass,
-						bean.shortName,
+						StringUtils.uncapitalize(bean.shortName),
 						JExpr.cast(classOutline.implClass,
 								_updateViewParam1));
 
@@ -169,22 +180,27 @@ public class SwingViewRenderer {
 //			String name = prop.getName(false) + "$" + (++i);
 				JType type = typeInfo.toType(outline, Aspect.EXPOSED);
 				Class<? extends JComponent> componentClass = componentsMap.get(type);
-				JType _componentRef = codeModel._ref(componentClass);
-				JFieldVar _field = _class.field(JMod.PROTECTED,
-						_componentRef, name + "Field");
-				_initComponents.body().assign(
-						_field,
-						JExpr._new(_componentRef));
-				JMethod getterMethod = getMethod(classOutline.implClass, "(?i)(?:get|is)" + name, type, new JType[0]);
-				if (getterMethod != null) {
-					_updateView.body().invoke(_field, componentSettersMap.get(componentClass)).arg(JExpr.invoke(_modelForUpdateView, getterMethod));
+				if (componentClass == null) {
+					System.err.println("component not found for type [" + type + "]");
 				} else {
-					System.err.println("getter method for property ["
-							+ prop.displayName() + "] not found.");
+					JType _componentRef = codeModel._ref(componentClass);
+					JFieldVar _field = _class.field(JMod.PROTECTED,
+							_componentRef, name + "Field");
+					_initComponents.body().assign(
+							_field,
+							JExpr._new(_componentRef));
+					JMethod getterMethod = getMethod(classOutline.implClass, "(?i)(?:get|is)" + name, type, new JType[0]);
+					JMethod setterMethod = getMethod(classOutline.implClass, "(?i)set" + name, codeModel.VOID, new JType[]{type});
+					if (getterMethod != null) {
+						_updateView.body().invoke(_field, componentSettersMap.get(componentClass)).arg(JExpr.invoke(_modelForUpdateView, getterMethod));
+					}
+					if (setterMethod != null) {
+//						_updateModel.body().invoke(_modelForUpdateView, setterMethod).arg(JExpr.invoke(_field, componentGettersMap.get(componentClass)));
+					}
+					
+					_buildPanel.body().invoke(_builder, "append").arg(
+							name).arg(_field);
 				}
-				
-				_buildPanel.body().invoke(_builder, "append").arg(
-						name).arg(_field);
 			}
 		}
 	}
@@ -284,7 +300,7 @@ public class SwingViewRenderer {
 											JExpr
 													._new(
 															codeModel
-																	._ref(ListHolder.class))
+																	.ref(IndirectListModel.class).narrow(type.boxify()))
 													.arg(
 															JExpr
 																	.invoke(
@@ -418,6 +434,28 @@ public class SwingViewRenderer {
 //		}
 //	}
 //});
+    
+    JDefinedClass generateNode() {
+    	JCodeModel codeModel = outline.getCodeModel();
+    	JDefinedClass implClass = classOutline.implClass;
+    	JDefinedClass _class;
+    	
+    	JPackage _package = implClass._package();
+    	String fullyqualifiedName = _package.name() + "." + "node."
+    	+ implClass.name() + "Node";
+    	try {
+    		_class = codeModel._class(fullyqualifiedName);
+    	} catch (JClassAlreadyExistsException e) {
+    		// ok, just retrieve existing class
+    		_class = e.getExistingClass();
+    	}
+    	
+    	
+    	_class._extends(AbstractTableAdapter.class);
+
+    	return _class;
+    }
+    
     JDefinedClass generateTableAdapter() {
 		JCodeModel codeModel = outline.getCodeModel();
 		JDefinedClass implClass = classOutline.implClass;
@@ -489,5 +527,4 @@ public class SwingViewRenderer {
 			
 			return _class;
 	}
-
 }

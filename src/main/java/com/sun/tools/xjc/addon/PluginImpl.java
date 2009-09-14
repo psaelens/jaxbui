@@ -1,5 +1,8 @@
 package com.sun.tools.xjc.addon;
 
+import org.apache.log4j.BasicConfigurator;
+import org.apache.log4j.ConsoleAppender;
+import org.apache.log4j.PatternLayout;
 import org.xml.sax.ErrorHandler;
 import org.xml.sax.SAXException;
 
@@ -20,6 +23,10 @@ public class PluginImpl extends Plugin {
 	 */
 	public static final String NS = "http://www.spitech.com/xjc/plugin/jaxbui";
 
+	public PluginImpl() {
+		BasicConfigurator.configure(new ConsoleAppender(new PatternLayout("[%-5p] %M(%c{1}:%L) %m%n")));
+	}
+	
 	@Override
 	public String getOptionName() {
 		return "Xui";

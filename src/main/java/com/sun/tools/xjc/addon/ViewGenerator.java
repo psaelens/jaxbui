@@ -11,10 +11,18 @@ import java.util.Set;
 import javax.xml.datatype.Duration;
 import javax.xml.datatype.XMLGregorianCalendar;
 
+import org.jdesktop.application.Application;
 import org.xml.sax.ErrorHandler;
 
+import com.spitech.uiskeleton.view.editor.Editor;
+import com.sun.codemodel.JClass;
+import com.sun.codemodel.JClassAlreadyExistsException;
 import com.sun.codemodel.JCodeModel;
 import com.sun.codemodel.JDefinedClass;
+import com.sun.codemodel.JExpr;
+import com.sun.codemodel.JFieldVar;
+import com.sun.codemodel.JMethod;
+import com.sun.codemodel.JMod;
 import com.sun.codemodel.JType;
 import com.sun.tools.xjc.model.CClassInfo;
 import com.sun.tools.xjc.model.CPropertyInfo;
@@ -33,6 +41,8 @@ public class ViewGenerator {
 	
 	/** all {@link ClassOutline}s keyed by their {@link ClassOutline#target}. */
 	private final Map<CClassInfo, SwingViewRenderer> viewRenderers = new HashMap<CClassInfo, SwingViewRenderer>();
+	private final Map<CClassInfo, NodeRenderer> nodeRenderers = new HashMap<CClassInfo, NodeRenderer>();
+	private final Map<CClassInfo, EditorRenderer> editorRenderers = new HashMap<CClassInfo, EditorRenderer>();
 
 	private final Outline outline;
 
@@ -77,14 +87,26 @@ public class ViewGenerator {
 		
 		// create the class definitions for all the beans first.
 		// this should also fill in PackageContext#getClasses
-		for (CClassInfo bean : model.beans().values())
-			getViewRenderer(bean);
+		for (CClassInfo bean : model.beans().values()) {
+//			getViewRenderer(bean);
+			nodeRenderers.put(bean, new NodeRenderer(this, outline, bean));
+			editorRenderers.put(bean, new EditorRenderer(this, outline, bean));
+		}
 
 		// fill in implementation classes
-		for (ClassOutline co : outline.getClasses())
-			generateViewBody(co);
+		for (ClassOutline co : outline.getClasses()) {
+//			generateViewBody(co);
+			nodeRenderers.get(co.target).generateBody();
+			editorRenderers.get(co.target).generateBody();
+		}
+		
+		generatePresentationChooser();
 	}
 
+	NodeRenderer getNodeRenderer(CClassInfo bean) {
+		return nodeRenderers.get(bean);
+	}
+	
 	public SwingViewRenderer getViewRenderer(CClassInfo bean) {
 //		System.out.println("ViewGenerator.getViewRenderer(" + bean + ")");
 		SwingViewRenderer r = viewRenderers.get(bean);
@@ -183,5 +205,38 @@ public class ViewGenerator {
 				return true;
 		}
 		return false;
+	}
+
+	Map<JClass, JDefinedClass> editors = new HashMap<JClass, JDefinedClass>();
+	
+	public void registerEditor(JClass implRef, JDefinedClass _class) {
+		editors.put(implRef, _class);
+	}
+	
+	private void generatePresentationChooser() {
+		JDefinedClass _class;
+		try {
+			_class = codeModel._class("generated.project.view.editor.EditorMap");
+		} catch (JClassAlreadyExistsException e) {
+			_class = e.getExistingClass();
+		}
+		JFieldVar _instance = _class.field(JMod.PRIVATE | JMod.STATIC, _class, "instance");
+		JFieldVar _editors = _class.field(JMod.PRIVATE, editorMapClass(Map.class), "editors", JExpr._new(editorMapClass(HashMap.class)));
+		
+		JMethod _constructor = _class.constructor(JMod.PRIVATE);
+		for (Map.Entry<JClass, JDefinedClass> editor : editors.entrySet()) {
+			_constructor.body().invoke(_editors, "put").arg(JExpr.dotclass(editor.getKey())).arg(JExpr._new(editor.getValue()).arg(codeModel.ref(Application.class).staticInvoke("getInstance")));
+		}
+		JMethod _getInstance = _class.method(JMod.PUBLIC | JMod.STATIC, _class, "getInstance");
+		_getInstance.body()._if(JExpr._null().eq(_instance))._then().assign(_instance, JExpr._new(_class));
+		_getInstance.body()._return(_instance);
+		
+		JMethod _getEditors = _class.method(JMod.PUBLIC, _editors.type(), "getEditors");
+		_getEditors.body()._return(_editors);
+		
+	}
+
+	private JClass editorMapClass(Class<? extends Map> clazz) {
+		return codeModel.ref(clazz).narrow(codeModel.ref(Class.class).narrow(codeModel.wildcard()), codeModel.ref(Editor.class));
 	}
 }
