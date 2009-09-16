@@ -4,7 +4,7 @@
 	<groupId>com.spitech.jaxbui</groupId>
 	<artifactId>jaxbui</artifactId>
 	<packaging>jar</packaging>
-	<version>1.0</version>
+	<version>1.0.1</version>
 	<name>jaxbui</name>
 	<url>http://maven.apache.org</url>
 	<dependencies>
@@ -37,7 +37,7 @@
 		<dependency>
 			<groupId>com.spitech.uiskeleton</groupId>
 			<artifactId>uiskeleton</artifactId>
-			<version>1.0</version>
+			<version>1.0.1</version>
 		</dependency>
 		<dependency>
 			<groupId>log4j</groupId>
