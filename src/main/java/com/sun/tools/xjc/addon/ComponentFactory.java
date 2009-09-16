@@ -7,6 +7,7 @@ import java.util.Map;
 
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
+import javax.swing.JFormattedTextField;
 import javax.swing.JTextField;
 import javax.xml.datatype.XMLGregorianCalendar;
 
@@ -26,16 +27,22 @@ class ComponentFactory {
 		componentsMap.put(codeModel._ref(String.class), JTextField.class);
 		componentSettersMap.put(JTextField.class, "setText");
 		componentGettersMap.put(JTextField.class, "getText");
-		componentsMap.put(codeModel._ref(Number.class), JNumberField.class);
-		componentsMap.put(codeModel._ref(Byte.class), JNumberField.class);
-		componentsMap.put(codeModel._ref(Integer.class), JNumberField.class);
-		componentsMap.put(codeModel._ref(BigInteger.class), JNumberField.class);
-		componentsMap.put(codeModel._ref(BigDecimal.class), JNumberField.class);
-		componentSettersMap.put(JNumberField.class, "setNumber");
-		componentGettersMap.put(JNumberField.class, "getNumber");
+		
+		componentsMap.put(codeModel._ref(Number.class), JFormattedTextField.class);
+		componentsMap.put(codeModel._ref(Byte.class), JFormattedTextField.class);
+		componentsMap.put(codeModel._ref(Integer.class), JFormattedTextField.class);
+		componentsMap.put(codeModel._ref(Long.class), JFormattedTextField.class);
+		componentsMap.put(codeModel._ref(BigInteger.class), JFormattedTextField.class);
+		componentsMap.put(codeModel._ref(BigDecimal.class), JFormattedTextField.class);
+//		componentsMap.put(codeModel._ref(XMLGregorianCalendar.class), JFormattedTextField.class);
+		
+		componentSettersMap.put(JFormattedTextField.class, "setValue");
+		componentGettersMap.put(JFormattedTextField.class, "getValue");
+		
 		componentsMap.put(codeModel._ref(Boolean.class), JCheckBox.class);
 		componentSettersMap.put(JCheckBox.class, "setSelected");
 		componentGettersMap.put(JCheckBox.class, "isSelected");
+		
 		componentsMap.put(codeModel._ref(XMLGregorianCalendar.class),
 				JDateField.class);
 		componentSettersMap.put(JDateField.class, "setDate");

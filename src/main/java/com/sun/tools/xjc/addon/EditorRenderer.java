@@ -6,8 +6,10 @@ import java.util.List;
 
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JFormattedTextField;
 import javax.swing.JList;
 import javax.swing.JScrollPane;
+import javax.swing.JFormattedTextField.AbstractFormatterFactory;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.builder.ToStringBuilder;
@@ -214,6 +216,8 @@ public class EditorRenderer implements CPropertyVisitor<String> {
 		return prop.kind() == PropertyKind.ATTRIBUTE;
 	}
 
+	FormatterFactory formatterFactory = new FormatterFactory();
+	
 	private void handleSimpleType(CPropertyInfo prop) {
 		// int i = 0;
 		if (prop.ref().isEmpty()) {
@@ -226,7 +230,11 @@ public class EditorRenderer implements CPropertyVisitor<String> {
 			String name = prop.getName(false);
 			for (CTypeInfo typeInfo : prop.ref()) {
 				// String name = prop.getName(false) + "$" + (++i);
+				
+				
 				JType type = typeInfo.toType(outline, Aspect.EXPOSED);
+//				JClass jclass = (JClass)type;
+//				jclass.
 				Class<? extends JComponent> componentClass = componentFactory.getComponent(type);
 				if (componentClass == null) {
 					LOG.warn("component not found for type [" + type + "]");
@@ -255,14 +263,15 @@ public class EditorRenderer implements CPropertyVisitor<String> {
 					}
 					if (setterMethod != null) {
 						JExpression arg;
-						if (type.unboxify() != type && type.unboxify() != codeModel.BOOLEAN) {
-//							LOG.debug("unboxify:" + type.unboxify().binaryName());
-							arg = JExpr.invoke(JExpr.invoke(_field,
-									componentFactory.getGetter(componentClass)), type.unboxify().binaryName() + "Value");
-						} else {
-							arg = JExpr.invoke(_field,
-									componentFactory.getGetter(componentClass));
-						}
+//						if (type.unboxify() != type && type.unboxify() != codeModel.BOOLEAN) {
+////							LOG.debug("unboxify:" + type.unboxify().binaryName());
+//							arg = JExpr.invoke(JExpr.invoke(_field,
+//									componentFactory.getGetter(componentClass)), type.unboxify().binaryName() + "Value");
+//						} else {
+							arg = JExpr.cast(type, 
+									JExpr.invoke(_field,
+									componentFactory.getGetter(componentClass))); 
+//						}
 						_updateModel.body().invoke(_modelForUpdateModel,
 						 setterMethod).arg(arg);
 					}
