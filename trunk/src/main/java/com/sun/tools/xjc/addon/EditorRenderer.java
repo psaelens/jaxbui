@@ -28,6 +28,7 @@ import com.sun.codemodel.JDefinedClass;
 import com.sun.codemodel.JExpr;
 import com.sun.codemodel.JExpression;
 import com.sun.codemodel.JFieldVar;
+import com.sun.codemodel.JInvocation;
 import com.sun.codemodel.JMethod;
 import com.sun.codemodel.JMod;
 import com.sun.codemodel.JPackage;
@@ -212,12 +213,6 @@ public class EditorRenderer implements CPropertyVisitor<String> {
 		return false;
 	}
 
-	private boolean isAttribute(CPropertyInfo prop) {
-		return prop.kind() == PropertyKind.ATTRIBUTE;
-	}
-
-	FormatterFactory formatterFactory = new FormatterFactory();
-	
 	private void handleSimpleType(CPropertyInfo prop) {
 		// int i = 0;
 		if (prop.ref().isEmpty()) {
@@ -244,25 +239,42 @@ public class EditorRenderer implements CPropertyVisitor<String> {
 							_componentRef, name + "Field");
 					_initComponents.body().assign(_field,
 							JExpr._new(_componentRef));
-					JMethod getterMethod = getter(name, type);
-					JMethod setterMethod = setter(name, type);
-					if (getterMethod != null) {
-						if (type.unboxify() == codeModel.BOOLEAN) {
-							JVar _selected = _updateView.body().decl(type, "selected", JExpr.invoke(_modelForUpdateView,
-									getterMethod));
-							_updateView.body()._if(_selected.eq(JExpr._null()))._then().assign(_selected, JExpr.FALSE);
+					if (prop.isCollection()) {
+						JClass listOfTypeClass = codeModel.ref(List.class).narrow(type.boxify());
+						JMethod getterMethod = getter(name, listOfTypeClass);
+						if (getterMethod != null) {
 							_updateView.body().invoke(_field, componentFactory.getSetter(componentClass))
-							.arg(_selected);
-						} else {
-							_updateView.body().invoke(_field, componentFactory.getSetter(componentClass))
-							.arg(
+							.arg(codeModel.ref(StringUtils.class).staticInvoke("join").arg(
 									JExpr.invoke(_modelForUpdateView,
-											getterMethod));
-						}
+											getterMethod)).arg(","));
 							
-					}
-					if (setterMethod != null) {
-						JExpression arg;
+							JInvocation getTypeInvocation = JExpr.invoke(_modelForUpdateModel, getterMethod);
+							_updateModel.body().add(getTypeInvocation.invoke("clear"));
+							JInvocation splitTextFieldInvocation = _field.invoke(componentFactory.getGetter(componentClass)).invoke("split").arg(",");
+							JInvocation arraysAsListInvocation = codeModel.ref(Arrays.class).staticInvoke("asList").arg(splitTextFieldInvocation);
+							_updateModel.body().add(getTypeInvocation.invoke("addAll").arg(arraysAsListInvocation));
+						}
+						
+					} else {
+						JMethod getterMethod = getter(name, type);
+						JMethod setterMethod = setter(name, type);
+						if (getterMethod != null) {
+							if (type.unboxify() == codeModel.BOOLEAN) {
+								JVar _selected = _updateView.body().decl(type, "selected", JExpr.invoke(_modelForUpdateView,
+										getterMethod));
+								_updateView.body()._if(_selected.eq(JExpr._null()))._then().assign(_selected, JExpr.FALSE);
+								_updateView.body().invoke(_field, componentFactory.getSetter(componentClass))
+								.arg(_selected);
+							} else {
+								_updateView.body().invoke(_field, componentFactory.getSetter(componentClass))
+								.arg(
+										JExpr.invoke(_modelForUpdateView,
+												getterMethod));
+							}
+							
+						}
+						if (setterMethod != null) {
+							JExpression arg;
 //						if (type.unboxify() != type && type.unboxify() != codeModel.BOOLEAN) {
 ////							LOG.debug("unboxify:" + type.unboxify().binaryName());
 //							arg = JExpr.invoke(JExpr.invoke(_field,
@@ -270,10 +282,11 @@ public class EditorRenderer implements CPropertyVisitor<String> {
 //						} else {
 							arg = JExpr.cast(type, 
 									JExpr.invoke(_field,
-									componentFactory.getGetter(componentClass))); 
+											componentFactory.getGetter(componentClass))); 
 //						}
-						_updateModel.body().invoke(_modelForUpdateModel,
-						 setterMethod).arg(arg);
+							_updateModel.body().invoke(_modelForUpdateModel,
+									setterMethod).arg(arg);
+						}
 					}
 
 					_buildPanel.body().invoke(_builder, "append").arg(name)
