@@ -3,15 +3,15 @@
 	<groupId>com.spitech.jaxbui</groupId>
 	<artifactId>jaxbui</artifactId>
 	<packaging>jar</packaging>
-	<version>1.0.2</version>
+	<version>1.0.3-SNAPSHOT</version>
 	<name>jaxbui</name>
 	<url>http://maven.apache.org</url>
 	
 	<!-- Configuration of source control management -->
 	  <scm>
-	    <connection>scm:svn:http://jaxbui.googlecode.com/svn/tags/jaxbui-1.0.2</connection>
-	    <developerConnection>scm:svn:https://jaxbui.googlecode.com/svn/tags/jaxbui-1.0.2</developerConnection>
-	    <url>http://code.google.com/p/jaxbui/source/list/tags/jaxbui-1.0.2</url>
+	    <connection>scm:svn:http://jaxbui.googlecode.com/svn/trunk</connection>
+	    <developerConnection>scm:svn:https://jaxbui.googlecode.com/svn/trunk</developerConnection>
+	    <url>http://code.google.com/p/jaxbui/source/list</url>
 	  </scm>
 
   
