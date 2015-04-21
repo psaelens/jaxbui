@@ -1,0 +1,1 @@
+a Plugin for JAXB 2.1 to generate a graphical user interface (Swing) from a given schema.
